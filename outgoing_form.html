@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>ส่งคำถามยา — Drug Reconciliation</title>
+
+  <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+
+  <style>
+    :root {
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --blue-light: #eff6ff;
+      --red: #ef4444;
+      --gray: #6b7280;
+      --border: #e5e7eb;
+      --bg: #f9fafb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Sarabun', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: #111827;
+      font-size: 15px;
+      padding-bottom: 80px;
+    }
+    .header {
+      background: var(--blue);
+      color: white;
+      padding: 16px 20px;
+      text-align: center;
+    }
+    .header h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+    .header p { font-size: 12px; opacity: 0.9; }
+
+    .pdpa-banner {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 10px 16px;
+      margin: 12px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #78350f;
+    }
+    .pdpa-banner strong { display: block; margin-bottom: 4px; }
+
+    .form-container { padding: 0 16px; }
+    .section {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--blue-dark);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--blue-light);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-group:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+    label .req { color: var(--red); margin-left: 2px; }
+    input[type="text"],
+    input[type="tel"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 15px; font-family: inherit; color: #111827;
+      background: white; transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    input.error, select.error, textarea.error { border-color: var(--red); }
+    .error-msg { font-size: 12px; color: var(--red); margin-top: 4px; display: none; }
+    .error-msg.show { display: block; }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* Hospital presets */
+    .preset-hospitals {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .preset-tag {
+      padding: 5px 10px;
+      background: var(--blue-light);
+      border: 1px solid #93c5fd;
+      border-radius: 20px;
+      font-size: 11px;
+      color: var(--blue-dark);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-tag:hover { background: var(--blue); color: white; border-color: var(--blue); }
+    .preset-tag.active { background: var(--blue); color: white; border-color: var(--blue); }
+
+    .query-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .query-option {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1.4;
+      transition: all 0.2s;
+      background: white;
+    }
+    .query-option:hover { border-color: var(--blue); background: var(--blue-light); }
+    .query-option.selected { border-color: var(--blue); background: var(--blue-light); color: var(--blue-dark); font-weight: 700; }
+    .query-option .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+    .consent-box {
+      background: #fef2f2; border: 1.5px solid #fca5a5;
+      border-radius: 10px; padding: 14px;
+    }
+    .consent-box.accepted { background: var(--blue-light); border-color: var(--blue); }
+    .consent-text { font-size: 12px; color: #374151; line-height: 1.7; margin-bottom: 12px; }
+    .consent-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .consent-check input[type="checkbox"] {
+      width: 20px; height: 20px; margin-top: 1px;
+      flex-shrink: 0; cursor: pointer; accent-color: var(--blue);
+    }
+    .consent-check span { font-size: 13px; font-weight: 600; line-height: 1.5; }
+
+    .submit-area {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 12px 16px; background: white;
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+    }
+    .btn-submit {
+      width: 100%; background: var(--blue); color: white;
+      border: none; padding: 14px; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background 0.2s;
+    }
+    .btn-submit:hover { background: var(--blue-dark); }
+    .btn-submit:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    .loading-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 100;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+      color: white; font-size: 15px;
+    }
+    .loading-overlay.show { display: flex; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .success-overlay {
+      display: none; position: fixed; inset: 0;
+      background: white; z-index: 200;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      text-align: center; padding: 32px;
+    }
+    .success-overlay.show { display: flex; }
+    .success-icon { font-size: 64px; }
+    .success-title { font-size: 22px; font-weight: 700; color: var(--blue); }
+    .success-case { font-size: 14px; color: var(--gray); background: var(--blue-light); padding: 10px 20px; border-radius: 20px; }
+    .success-msg { font-size: 13px; color: #374151; line-height: 1.7; }
+    .btn-close {
+      background: var(--blue); color: white; border: none;
+      padding: 12px 32px; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📤 ส่งคำถามยาไปยัง รพ.อื่น</h1>
+  <p>บันทึกคำขอขาออก — สำหรับบุคลากรของเราเท่านั้น</p>
+</div>
+
+<div class="pdpa-banner">
+  <strong>⚠️ แจ้งเตือน PDPA</strong>
+  กรุณาตรวจสอบให้แน่ใจว่าได้รับความยินยอมจากผู้ป่วยก่อนส่งข้อมูลไปยังสถานพยาบาลอื่น
+</div>
+
+<form id="mainForm" class="form-container" novalidate>
+
+  <!-- Section 1: ผู้ส่งคำถาม (ของเรา) -->
+  <div class="section">
+    <div class="section-title">👤 ข้อมูลผู้ส่งคำถาม (บุคลากรของเรา)</div>
+
+    <div class="form-group">
+      <label>ชื่อ-นามสกุล <span class="req">*</span></label>
+      <input type="text" id="our_staff_name" placeholder="ชื่อ-นามสกุลผู้ส่งคำถาม" />
+      <div class="error-msg" id="err_our_staff_name">กรุณาระบุชื่อ-นามสกุล</div>
+    </div>
+
+    <div class="form-group">
+      <label>ตำแหน่งวิชาชีพ <span class="req">*</span></label>
+      <select id="our_staff_profession">
+        <option value="">— เลือกวิชาชีพ —</option>
+        <option value="pharmacist">เภสัชกร</option>
+        <option value="physician">แพทย์</option>
+        <option value="nurse">พยาบาล</option>
+        <option value="dentist">ทันตแพทย์</option>
+        <option value="other">อื่นๆ</option>
+      </select>
+      <div class="error-msg" id="err_our_staff_profession">กรุณาเลือกวิชาชีพ</div>
+    </div>
+
+    <div class="form-group">
+      <label>เลขที่ใบประกอบวิชาชีพ <span class="req">*</span></label>
+      <input type="text" id="our_staff_license_no" placeholder="เช่น ภ.1234567" />
+      <div class="error-msg" id="err_our_staff_license_no">กรุณาระบุเลขใบประกอบวิชาชีพ</div>
+    </div>
+  </div>
+
+  <!-- Section 2: ปลายทาง -->
+  <div class="section">
+    <div class="section-title">🏥 สถานพยาบาลปลายทาง</div>
+
+    <div class="form-group">
+      <label>เลือกโรงพยาบาลที่ใช้บ่อย</label>
+      <div class="preset-hospitals" id="presetHospitals">
+        <!-- Presets จะถูก populate โดย JavaScript -->
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>ชื่อโรงพยาบาล/คลินิก <span class="req">*</span></label>
+      <input type="text" id="target_hospital" placeholder="ชื่อโรงพยาบาลหรือคลินิกปลายทาง" />
+      <div class="error-msg" id="err_target_hospital">กรุณาระบุสถานพยาบาลปลายทาง</div>
+    </div>
+
+    <div class="form-group">
+      <label>เบอร์โทรปลายทาง</label>
+      <input type="tel" id="target_hospital_phone" placeholder="0X-XXXX-XXXX" />
+    </div>
+  </div>
+
+  <!-- Section 3: ข้อมูลผู้ป่วย -->
+  <div class="section">
+    <div class="section-title">🧑‍⚕️ ข้อมูลผู้ป่วย</div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="form-group">
+        <label>ชื่อ <span class="req">*</span></label>
+        <input type="text" id="patient_first_name" placeholder="ชื่อ" />
+        <div class="error-msg" id="err_patient_first_name">กรุณาระบุชื่อ</div>
+      </div>
+      <div class="form-group">
+        <label>นามสกุล <span class="req">*</span></label>
+        <input type="text" id="patient_last_name" placeholder="นามสกุล" />
+        <div class="error-msg" id="err_patient_last_name">กรุณาระบุนามสกุล</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>เลขบัตรประชาชน 13 หลัก <span class="req">*</span></label>
+      <input type="text" id="patient_id_card" placeholder="X-XXXX-XXXXX-XX-X" maxlength="13" inputmode="numeric" />
+      <div class="error-msg" id="err_patient_id_card">กรุณาระบุเลขบัตรประชาชน 13 หลักที่ถูกต้อง</div>
+    </div>
+
+    <div class="form-group">
+      <label>วันเกิดผู้ป่วย (ถ้ามี)</label>
+      <input type="date" id="patient_dob" />
+    </div>
+  </div>
+
+  <!-- Section 4: ประเภทคำถาม -->
+  <div class="section">
+    <div class="section-title">❓ ประเภทข้อมูลที่ต้องการ <span class="req">*</span></div>
+    <div class="query-grid" id="queryGrid">
+      <div class="query-option" data-value="drug_reconciliation" onclick="selectQuery(this)">
+        <span class="icon">💊</span>Drug Reconciliation<br/>(ยาเดิมที่ใช้อยู่)
+      </div>
+      <div class="query-option" data-value="allergy_history" onclick="selectQuery(this)">
+        <span class="icon">⚠️</span>ประวัติแพ้ยา
+      </div>
+      <div class="query-option" data-value="drug_interaction" onclick="selectQuery(this)">
+        <span class="icon">🔬</span>Drug Interaction
+      </div>
+      <div class="query-option" data-value="medication_list" onclick="selectQuery(this)">
+        <span class="icon">📋</span>รายการยาทั้งหมด
+      </div>
+      <div class="query-option" data-value="other" onclick="selectQuery(this)" style="grid-column:1/-1;">
+        <span class="icon">📝</span>อื่นๆ (ระบุในรายละเอียด)
+      </div>
+    </div>
+    <input type="hidden" id="query_type" />
+    <div class="error-msg" id="err_query_type">กรุณาเลือกประเภทข้อมูล</div>
+
+    <div class="form-group" style="margin-top:12px;">
+      <label>รายละเอียดเพิ่มเติม</label>
+      <textarea id="query_detail" placeholder="ระบุยาที่ต้องการทราบ หรือข้อมูลเพิ่มเติม..."></textarea>
+    </div>
+  </div>
+
+  <!-- Section 5: PDPA -->
+  <div class="section">
+    <div class="section-title">🔒 ความยินยอมตาม PDPA</div>
+    <div class="consent-box" id="consentBox">
+      <div class="consent-text">
+        ข้าพเจ้าขอรับรองว่า:<br/>
+        1. ได้รับความยินยอมจากผู้ป่วยในการส่งข้อมูลสุขภาพไปยังสถานพยาบาลอื่นแล้ว<br/>
+        2. การส่งข้อมูลมีวัตถุประสงค์เพื่อ<strong>ประกอบการรักษาพยาบาลเท่านั้น</strong><br/>
+        3. ข้อมูลจะถูกเก็บรักษาตามมาตรฐาน PDPA
+      </div>
+      <label class="consent-check">
+        <input type="checkbox" id="pdpa_consent" onchange="onConsentChange(this)" />
+        <span>ข้าพเจ้ายืนยันว่าได้รับความยินยอมจากผู้ป่วยแล้ว</span>
+      </label>
+    </div>
+    <div class="error-msg" id="err_pdpa_consent">กรุณายืนยันความยินยอม PDPA</div>
+  </div>
+
+</form>
+
+<div class="submit-area">
+  <button class="btn-submit" id="submitBtn" onclick="submitForm()">
+    📤 บันทึกและส่งคำขอ
+  </button>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div>กำลังบันทึกข้อมูล...</div>
+</div>
+
+<div class="success-overlay" id="successOverlay">
+  <div class="success-icon">📤</div>
+  <div class="success-title">บันทึกคำขอสำเร็จ!</div>
+  <div class="success-case" id="successCaseId"></div>
+  <div class="success-msg">บันทึกคำขอขาออกเรียบร้อย<br/>กรุณาติดต่อสถานพยาบาลปลายทางต่อไป</div>
+  <button class="btn-close" onclick="closeLiff()">ปิดหน้าต่าง</button>
+</div>
+
+<script>
+  const LIFF_ID = "YOUR_LIFF_ID_OUTGOING";           // ← แก้ตรงนี้
+  const API_BASE_URL = "https://your-api-domain.com"; // ← แก้ตรงนี้
+
+  // รายชื่อ รพ. ที่ใช้บ่อย — แก้ตามบริบทของคุณ
+  const PRESET_HOSPITALS = [
+    "รพ.ศิริราช",
+    "รพ.รามาธิบดี",
+    "รพ.จุฬาลงกรณ์",
+    "รพ.ประจำจังหวัด",
+    "คลินิกในพื้นที่",
+  ];
+
+  let lineUserId = "";
+
+  // Populate presets
+  const container = document.getElementById("presetHospitals");
+  PRESET_HOSPITALS.forEach(h => {
+    const tag = document.createElement("span");
+    tag.className = "preset-tag";
+    tag.textContent = h;
+    tag.onclick = () => {
+      document.getElementById("target_hospital").value = h;
+      document.querySelectorAll(".preset-tag").forEach(t => t.classList.remove("active"));
+      tag.classList.add("active");
+    };
+    container.appendChild(tag);
+  });
+
+  // LIFF init
+  liff.init({ liffId: LIFF_ID })
+    .then(() => {
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      return liff.getProfile();
+    })
+    .then(p => { if (p) lineUserId = p.userId; })
+    .catch(e => console.error(e));
+
+  function selectQuery(el) {
+    document.querySelectorAll(".query-option").forEach(o => o.classList.remove("selected"));
+    el.classList.add("selected");
+    document.getElementById("query_type").value = el.dataset.value;
+    document.getElementById("err_query_type").classList.remove("show");
+  }
+
+  function onConsentChange(cb) {
+    document.getElementById("consentBox").classList.toggle("accepted", cb.checked);
+  }
+
+  function validateThaiId(id) {
+    id = id.replace(/[-\s]/g, "");
+    if (!/^\d{13}$/.test(id)) return false;
+    let sum = 0;
+    for (let i = 0; i < 12; i++) sum += parseInt(id[i]) * (13 - i);
+    return (11 - (sum % 11)) % 10 === parseInt(id[12]);
+  }
+
+  function setError(id, show) {
+    const el = document.getElementById(id);
+    const errEl = document.getElementById("err_" + id);
+    if (el) el.classList.toggle("error", show);
+    if (errEl) errEl.classList.toggle("show", show);
+    return show;
+  }
+
+  function validate() {
+    let hasError = false;
+    const req = (id, minLen = 2) => {
+      const val = document.getElementById(id)?.value?.trim() || "";
+      const err = val.length < minLen;
+      setError(id, err);
+      if (err) hasError = true;
+    };
+    req("our_staff_name");
+    if (!document.getElementById("our_staff_profession").value) {
+      setError("our_staff_profession", true); hasError = true;
+    } else setError("our_staff_profession", false);
+    req("our_staff_license_no", 3);
+    req("target_hospital");
+    req("patient_first_name", 1);
+    req("patient_last_name", 1);
+    if (!validateThaiId(document.getElementById("patient_id_card").value)) {
+      setError("patient_id_card", true); hasError = true;
+    } else setError("patient_id_card", false);
+    if (!document.getElementById("query_type").value) {
+      document.getElementById("err_query_type").classList.add("show"); hasError = true;
+    } else document.getElementById("err_query_type").classList.remove("show");
+    if (!document.getElementById("pdpa_consent").checked) {
+      setError("pdpa_consent", true); hasError = true;
+    } else setError("pdpa_consent", false);
+    return !hasError;
+  }
+
+  async function submitForm() {
+    if (!validate()) return;
+    const payload = {
+      our_staff_name: v("our_staff_name"),
+      our_staff_profession: v("our_staff_profession"),
+      our_staff_license_no: v("our_staff_license_no"),
+      target_hospital: v("target_hospital"),
+      target_hospital_phone: v("target_hospital_phone"),
+      patient_first_name: v("patient_first_name"),
+      patient_last_name: v("patient_last_name"),
+      patient_id_card: v("patient_id_card").replace(/[-\s]/g, ""),
+      patient_dob: v("patient_dob"),
+      query_type: v("query_type"),
+      query_detail: v("query_detail"),
+      pdpa_consent: true,
+      line_user_id: lineUserId,
+    };
+    showLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/submit-outgoing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) showSuccess(data.case_id);
+      else alert("เกิดข้อผิดพลาด: " + (data.detail || "กรุณาลองใหม่"));
+    } catch {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function v(id) { return document.getElementById(id)?.value?.trim() || ""; }
+  function showLoading(s) {
+    document.getElementById("loadingOverlay").classList.toggle("show", s);
+    document.getElementById("submitBtn").disabled = s;
+  }
+  function showSuccess(caseId) {
+    document.getElementById("successCaseId").textContent = "Case ID: " + caseId;
+    document.getElementById("successOverlay").classList.add("show");
+  }
+  function closeLiff() {
+    if (liff.isInClient()) liff.closeWindow();
+    else window.close();
+  }
+</script>
+</body>
+</html>
